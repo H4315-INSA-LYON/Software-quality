@@ -22,7 +22,7 @@ sig Drone
 	produits: Produit -> Time,
 	destination: Receptacle	one->Time,
 	// chemin
-	energie: Int one  -> TIme
+	energie: Int one  -> Time
 }
 
 // receptacle qui recoit les produits transportes par une drone
@@ -58,16 +58,32 @@ fact DroneNombre
 	#Drone > 0
 }
 
+fact Voisinage 
+{
+
+all r1 : Receptacle | some r2 : Receptacle | distance[r1.pos, r2.pos]<Int[3] 
+
+}
+
 
 // ------------------  Functions  ---------------------
-fun abs[a Int]: Int
+fun abs[a : Int]: Int
 {
+	(a<Int[0]) =>a.mul[-1] else a
 }
 
-fun distance [a,b Position]: Int
+fun distance [a,b : Position]: Int
 {
-	
+	abs[sub[a.x,b.x]]+abs[sub[a.y,b.y]]
 }
+
+
+
+
+
+
+
+
 
 
 
