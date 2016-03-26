@@ -6,7 +6,7 @@ open util/integer
 
 // ------------------  Constantes  ---------------------
 // Des valeurs constants comme la taille de la grille, le nombre de receptacles,...
-let tailleGrille = 5
+let tailleGrille = 7
 let RCAP = 7
 let DCAP = 2
 
@@ -18,7 +18,6 @@ sig Time {}
 
 //definition d'un produit
 sig Produit {}
-
 
 // la position d'une Drone, Receptacle, Entrepot qui est selon les directions x et y
 sig Position
@@ -32,7 +31,7 @@ sig Drone
 	pos :  Position one -> Time,
 	produits: Produit -> Time,
 	destination: Receptacle	one->Time,
-	// chemin
+	noeud : Noeud one -> Time,
 	energie: Int one  -> Time
 }
 
@@ -49,6 +48,13 @@ sig Commande
 {
 	destination: one Receptacle,
 	produits: Produit -> Time
+}
+
+sig Noeud
+{
+	currentR : one Receptacle,	
+	nextN : lone Noeud
+
 }
 
 // la declaration de l'entrepot qui est de la meme maniere que le receptacle
@@ -113,6 +119,37 @@ fact ObjetPositionGrille
 all p : Position | p.x>=0 && p.x<tailleGrille && p.y>=0 && p.y<tailleGrille 
 }
 
+// La destination d'une commande ne peut pas etre l'entrepot
+fact DestinationCommandePasEntrepot
+{
+all c : Commande | some e : Entrepot | c.destination!=e
+}
+
+// Il peut pas avoir de boucle
+fact BoucleNoeuds
+{
+all n : Noeud | n.currentR not in n.^nextN.currentR
+}
+
+// La distance entre entre deux receptacles consecutives d'un chemin doit etre plus petit que 3
+// ????? cas si chemin sans consecutive
+fact distanceReceptacleConsecutive
+{
+	all n : Noeud | distance[n.currentR.pos, n.nextN.currentR.pos]<=3
+}
+// On peut arriver a partir d'entrepot a n'importe quelle receptacle
+fact RecepctacleAtteignable
+{
+	all r : Receptacle | one e : Etrepot | some n : Noeud | (n.currentR=e) && r in n.^nextN
+}
+
+// On peut pas avoir des noeuds doublons( meme receptacles et meme nextN )
+fact NoeudsDifferent
+{
+	all disj n1, n2 : Noeud | n1.currentR!=n2.currentR || n1.nextN!=n2.nextN
+}
+
+
 
 // ------------------  FUNCTIONS  ---------------------
 fun abs[a : Int]: Int
@@ -126,12 +163,18 @@ fun distance [a,b : Position]: Int
 }
 
 
+
+// ------------------  SIMULATION  ---------------------
+
+
+
+
 // ------------------  TESTS  ---------------------
 
 
 pred show{}
 
-run show for 2
+run show for 6
 
 
 
