@@ -9,6 +9,7 @@ open util/integer
 let tailleGrille = 7
 let RCAP = 7
 let DCAP = 2
+let ECAP = 3
 
 
 // ------------------  SIGNATURE  ---------------------
@@ -63,6 +64,22 @@ one sig Entrepot extends Receptacle {}
 
 
 
+// ------------------  FUNCTIONS  ---------------------
+
+// Renvoie la valure absolue d'un nombre
+fun abs[a : Int]: Int
+{
+	(a<Int[0]) =>a.mul[-1] else a
+}
+
+// Renvoie la distance de Manhattan entre deux position a et b
+fun distance [a,b : Position]: Int
+{
+	add[ abs[sub[a.x,b.x] ], abs[sub[a.y,b.y] ] ]
+}
+
+
+
 // -----------------  INVARIANTS  ------------------
 
 // le nombre de receptacle doit etre plus grand a un + 1 pour l'entrepot
@@ -97,7 +114,7 @@ fact DroneReceptacleVoisin
 // Les positions ont des coordonnees differents
 fact PositionPasMemeCoordonnes 
 {
-all disj p1, p2: Position | p1.x != p2.x || p1.y != p2.y 
+	all disj p1, p2: Position | p1.x != p2.x || p1.y != p2.y 
 }
 
 //Deux drones ne peuvent pas avoir la meme position
@@ -128,8 +145,9 @@ all c : Commande | some e : Entrepot | c.destination!=e
 // Il peut pas avoir de boucle
 fact BoucleNoeuds
 {
-all n : Noeud | n.currentR not in n.^nextN.currentR
+	all n : Noeud | n.currentR not in n.^nextN.currentR
 }
+
 
 // La distance entre entre deux receptacles consecutives d'un chemin doit etre plus petit que 3
 // ????? cas si chemin sans consecutive
@@ -137,11 +155,17 @@ fact distanceReceptacleConsecutive
 {
 	all n : Noeud | distance[n.currentR.pos, n.nextN.currentR.pos]<=3
 }
+
 // On peut arriver a partir d'entrepot a n'importe quelle receptacle
 fact RecepctacleAtteignable
 {
-	all r : Receptacle | one e : Etrepot | some n : Noeud | (n.currentR=e) && r in n.^nextN
+	one e : Entrepot | some n : Noeud
+	{
+		 n.currentR=e 
+		all r : Receptacle | (r!= e) && r in n.*nextN.currentR
+	}
 }
+
 
 // On peut pas avoir des noeuds doublons( meme receptacles et meme nextN )
 fact NoeudsDifferent
@@ -150,31 +174,55 @@ fact NoeudsDifferent
 }
 
 
-
-// ------------------  FUNCTIONS  ---------------------
-fun abs[a : Int]: Int
-{
-	(a<Int[0]) =>a.mul[-1] else a
-}
-
-fun distance [a,b : Position]: Int
-{
-	add[ abs[sub[a.x,b.x] ], abs[sub[a.y,b.y] ] ]
-}
-
-
-
 // ------------------  SIMULATION  ---------------------
 
+// initialisation
+pred init[t:Time]
+{
+	// pas de commande vide 
+	all commande : Commande | #commande.produits.t > 0
+	
+	// tout les drones sont vides au debut
+	all drone : Drone | #drone.produits.t  = 0
+	
+	one e: Entrepot | {
+		
+				// un receptacle soit c'est l'entrepot soit il est vide
+				all r: Receptacle | r = e ||  #r.produits.t = 0
+				
+				// TODO: la generation des chemins pour chaque receptacle
 
+				// toutes les drones a l'entrepot et charges
+				all d: Drone | {
+					d.pos.t = e.pos
+					d.energie.t = ECAP
+					d.destination.t = e
+					d.noeud.t.currentR = e
+				}				
 
+				// toutes les produits se trouvent a l'entrepot
+				all p: Produit | p in e.produits.t 
+	}
+}
+
+// simulation
+pred simul
+{
+	init[first]
+	all t: Time - last | let t' = t.next 
+	{
+		all d : Drone | deplacerDrone[t,t',d]
+	}
+}
+
+pred deplacerDrone[t,t' : Time , d:Drone]
+{
+}
 
 // ------------------  TESTS  ---------------------
 
 
-pred show{}
-
-run show for 6
+run simul for 2
 
 
 
