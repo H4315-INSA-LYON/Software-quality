@@ -159,7 +159,7 @@ fact distanceReceptacleConsecutive
 // On peut arriver a partir d'entrepot a n'importe quelle receptacle
 fact RecepctacleAtteignable
  {
- 	all r : Receptacle | one e : Entrepot  | some n : Noeud | (r!=e) => r in n.*nextN.currentR
+ 	all r : Receptacle | one e : Entrepot  | some n : Noeud | (n.currentR=e) && ((r!=e) => r in n.*nextN.currentR)
  }
 
 // On peut pas avoir des noeuds doublons( meme receptacles et meme nextN )
@@ -214,8 +214,12 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 
 // ------------------  TESTS  ---------------------
 
+pred show{}
 
-run simul for 6
+run show for 3
+
+
+run simul for 3
 
 
 
