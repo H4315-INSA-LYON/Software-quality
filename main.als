@@ -98,7 +98,7 @@ fact DroneNombre
 fact Voisinage 
 {
 	all r1 : Receptacle | some r2 : Receptacle   
-	|  distance[r1.pos, r2.pos]<4
+	| distance[r1.pos,r2.pos]>0 && distance[r1.pos, r2.pos]<4
 }
 // Pour chaque drone l'energie est entre 0 et 3 inclus.
 fact EnergieDrone 
@@ -158,14 +158,9 @@ fact distanceReceptacleConsecutive
 
 // On peut arriver a partir d'entrepot a n'importe quelle receptacle
 fact RecepctacleAtteignable
-{
-	one e : Entrepot | some n : Noeud
-	{
-		 n.currentR=e 
-		all r : Receptacle | (r!= e) && r in n.*nextN.currentR
-	}
-}
-
+ {
+ 	all r : Receptacle | one e : Entrepot  | some n : Noeud | (r!=e) => r in n.*nextN.currentR
+ }
 
 // On peut pas avoir des noeuds doublons( meme receptacles et meme nextN )
 fact NoeudsDifferent
@@ -189,8 +184,6 @@ pred init[t:Time]
 		
 				// un receptacle soit c'est l'entrepot soit il est vide
 				all r: Receptacle | r = e ||  #r.produits.t = 0
-				
-				// TODO: la generation des chemins pour chaque receptacle
 
 				// toutes les drones a l'entrepot et charges
 				all d: Drone | {
@@ -222,7 +215,7 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 // ------------------  TESTS  ---------------------
 
 
-run simul for 2
+run simul for 6
 
 
 
