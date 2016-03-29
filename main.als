@@ -4,15 +4,15 @@ open util/ordering[Time] as to
 open util/integer 
 
 
-// ------------------  Constantes  ---------------------
-// Des valeurs constants comme la taille de la grille, le nombre de receptacles,...
-let tailleGrille = 7
-let RCAP = 7
-let DCAP = 2
-let ECAP = 3
+// -----------------------------------  CONSTANTES  --------------------------------------------
+
+let tailleGrille = 7 // la taille de la grille
+let RCAP = 7  		// la capacite de stockage d'un receptacle nbProduits <= RCAP
+let DCAP = 2  		// la capacite de transport d'une drone nbProduits <= DCAP
+let ECAP = 3  		// la capacite de chargement d'une drone energie <= ECAP
 
 
-// ------------------  SIGNATURE  ---------------------
+// -----------------------------------  SIGNATURES  --------------------------------------------
 
 // le temps
 sig Time {}
@@ -51,11 +51,15 @@ sig Commande
 	produits: Produit -> Time
 }
 
+// Un noeud est represente par un receptacle. Permet de calculer le chemin entre 
+// entrepot et un receptacle
+// nextN        - le prochain noeud dans le chemin (pour les extremites vide)
+// previousN  - le noeud anterieur dans le chemin (pour l'entrepot vide)  
 sig Noeud
 {
 	currentR : one Receptacle,	
-	nextN : lone Noeud
-
+	nextN : lone Noeud,
+	previousN : lone Noeud
 }
 
 // la declaration de l'entrepot qui est de la meme maniere que le receptacle
@@ -80,7 +84,25 @@ fun distance [a,b : Position]: Int
 
 
 
-// -----------------  INVARIANTS  ------------------
+// -----------------------------------  INVARIANTS  --------------------------------------------
+
+// ---- Invariants pour la creation de la carte ----
+
+// Tous drones et receptacles doit etre a l'interieur de notre grille
+fact ObjetPositionGrille
+{
+	all p : Position | p.x>=0 && p.x<tailleGrille && p.y>=0 && p.y<tailleGrille 
+}
+
+// Les positions ont des coordonnees differents
+fact PositionPasMemeCoordonnes 
+{
+	all disj p1, p2: Position | p1.x != p2.x || p1.y != p2.y 
+}
+
+
+
+// ---- Invariants d'initialisation des donees ----
 
 // le nombre de receptacle doit etre plus grand a un + 1 pour l'entrepot
 fact ReceptacleNombre
@@ -88,11 +110,20 @@ fact ReceptacleNombre
 	#Receptacle > 1
 }
 
-// le nombre de drones doit etre positif
+// le nombre de drones doit etre strictement positif
 fact DroneNombre
 {
 	#Drone > 0
 }
+
+// le nombre de commandes est strictement positif
+fact CommandeNombre
+{
+	#Commande > 0
+}
+
+// ---- Invariants sur les receptacles ----
+
 // Chaque receptacle doit avoir un autre receptacle voisin pour lequelle leur distance est plus
 // petit que 3
 fact Voisinage 
@@ -100,6 +131,16 @@ fact Voisinage
 	all r1 : Receptacle | some r2 : Receptacle   
 	| distance[r1.pos,r2.pos]>0 && distance[r1.pos, r2.pos]<4
 }
+
+// Les receptacles sont dans des positions differents
+fact ReceptaclePasMemePosition
+{
+	all disj r1, r2 : Receptacle | r1.pos!=r2.pos
+}
+
+
+// ---- Invariants sur les drones
+
 // Pour chaque drone l'energie est entre 0 et 3 inclus.
 fact EnergieDrone 
 {
@@ -111,36 +152,26 @@ fact DroneReceptacleVoisin
 {
 	all d : Drone, t : Time | some r : Receptacle | distance[r.pos, d.pos.t]<4
 }
-// Les positions ont des coordonnees differents
-fact PositionPasMemeCoordonnes 
-{
-	all disj p1, p2: Position | p1.x != p2.x || p1.y != p2.y 
-}
 
-//Deux drones ne peuvent pas avoir la meme position
-// sauf dans l'entrepot
+// Useless
+// Deux drones ne peuvent pas avoir la meme position
+// sauf dans l'entrepot 
 fact DronePasMemePosition
 {
  	all disj d1, d2 : Drone | all t : Time | some e : Entrepot | d1.pos.t!=d2.pos.t ||
 	d1.pos.t = e.pos
 }
-// Les receptacles sont dans des positions differents
-fact ReceptaclePasMemePosition
-{
-	all disj r1, r2 : Receptacle | r1.pos!=r2.pos
-}
 
-// Tous drones et receptacles doit etre a l'interieur de notre grille
-fact ObjetPositionGrille
-{
-all p : Position | p.x>=0 && p.x<tailleGrille && p.y>=0 && p.y<tailleGrille 
-}
+
+// ---- Invariants sur les commandes ----
 
 // La destination d'une commande ne peut pas etre l'entrepot
 fact DestinationCommandePasEntrepot
 {
-all c : Commande | some e : Entrepot | c.destination!=e
+	all c : Commande | one e : Entrepot | c.destination!=e
 }
+
+// ---- Invariants sur les noeuds ----
 
 // Il peut pas avoir de boucle
 fact BoucleNoeuds
@@ -148,6 +179,20 @@ fact BoucleNoeuds
 	all n : Noeud | n.currentR not in n.^nextN.currentR
 }
 
+fact PreviousNoeuds
+{
+	all n: Noeud | (#n.nextN>0) => (n.nextN.previousN = n)
+}
+
+fact EntrepotInvariants
+{
+	all n : Noeud| one e: Entrepot | (n.currentR = e) => ( #n.previousN =0 )
+}
+
+fact NoUniqueNodeForEntrepot
+{
+	all n : Noeud | one e:Entrepot | (n.currentR=e) => (#n.nextN>0)
+}
 
 // La distance entre entre deux receptacles consecutives d'un chemin doit etre plus petit que 3
 // ????? cas si chemin sans consecutive
@@ -178,10 +223,10 @@ pred init[t:Time]
 	all commande : Commande | #commande.produits.t > 0
 	
 	// tout les drones sont vides au debut
-	all drone : Drone | #drone.produits.t  = 0
-	
+	all drone : Drone | #drone.produits.t  = 0	
+
 	one e: Entrepot | {
-		
+				
 				// un receptacle soit c'est l'entrepot soit il est vide
 				all r: Receptacle | r = e ||  #r.produits.t = 0
 
@@ -189,14 +234,16 @@ pred init[t:Time]
 				all d: Drone | {
 					d.pos.t = e.pos
 					d.energie.t = ECAP
+					#d.produits.t = 0
 					d.destination.t = e
 					d.noeud.t.currentR = e
 				}				
 
-				// toutes les produits se trouvent a l'entrepot
-				all p: Produit | p in e.produits.t 
+				// toutes les produits se trouvent a l'entrepot et chaque commande a un seule type de produits
+				all p: Produit | p in e.produits.t && one c: Commande | p in c.produits.t
 	}
 }
+
 
 // simulation
 pred simul
@@ -210,26 +257,85 @@ pred simul
 
 pred deplacerDrone[t,t' : Time , d:Drone]
 {
+	one e: Entrepot | d.pos.t = d.destination.t.pos => 
+	{
+		// drone a l'entrepot
+		d.pos.t = e.pos => 
+		{
+			some c: Commande | #c.produits.t > 0 && (no d': Drone | d!=d' && c.produits.t in d'.produits.t')=>
+			{
+				#d.produits.t' = DCAP || #c.produits.t' = 0
+				d.produits.t' in c.produits.t
+				d.produits.t' in e.produits.t
+				d.produits.t' not in c.produits.t'
+				d.produits.t' not in e.produits.t'
+				no d' : Drone | d' != d &&  (d'.produits.t' not in d.produits.t') && (d.produits.t' not in d'.produits.t')
+				d.destination.t' = c.destination 
+				one n : Noeud | {
+					n.currentR = d.destination.t'
+					d.noeud.t'.currentR = e
+					no n.nextN
+					n in d.noeud.t'.*nextN
+				}
+			}
+			else 
+			{
+				d.produits.t' = d.produits.t
+				d.destination.t' = e
+				d.pos.t' = e.pos
+			}
+		}
+		// drone a un receptacle
+		else
+		{
+			some r: Receptacle | r = d.destination.t =>
+			{
+				r.produits.t' in d.produits.t
+				#d.produits.t' = 0
+				d.destination.t' = e
+			}
+		}
+	}
+	//drone en mouvement
+	else
+	{
+		// si la drone se trouve dans un noeud
+		d.pos.t = d.noeud.t.currentR.pos =>
+		{
+			// la drone doit etre charge
+			d.energie.t < distance[d.pos.t, d.noeud.t.nextN.currentR.pos] =>
+			{
+				d.pos.t' = d.pos.t
+				d.energie.t' = d.energie.t.add[1]
+			}
+			// la drone est charge, donc elle peut avancer
+			else
+			{
+				// si la drone se retourne
+				d.destination.t = e => 
+				{
+					
+					d.noeud.t' = d.noeud.t.previousN
+				}
+				// si la drone va vers un receptacle
+				else
+				{
+					
+					d.noeud.t = d.noeud.t.nextN
+				}
+			}
+		}
+		// si la drone se trouve dans le trajet elle doit juste avancer
+		else
+		{
+			
+		}
+	}
 }
 
 // ------------------  TESTS  ---------------------
 
-pred show{}
-
-run show for 3
-
 
 run simul for 3
-
-
-
-
-
-
-
-
-
-
-
 
 
