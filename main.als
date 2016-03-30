@@ -10,6 +10,7 @@ let tailleGrille = 7 // la taille de la grille
 let RCAP = 7  		// la capacite de stockage d'un receptacle nbProduits <= RCAP
 let DCAP = 3  		// la capacite de transport d'une drone nbProduits <= DCAP
 let ECAP = 3  		// la capacite de chargement d'une drone energie <= ECAP
+let CCAP = 3  		// la capacite maximale d'une commande 
 
 
 // -----------------------------------  SIGNATURES  --------------------------------------------
@@ -220,7 +221,7 @@ fact NoeudsDifferent
 pred init[t:Time]
 {
 	// pas de commande vide 
-	all commande : Commande | #commande.produits.t > 0
+	all commande : Commande | #commande.produits.t > 0 && #commande.produits<=CCAP
 	
 	// tout les drones sont vides au debut
 	all drone : Drone | #drone.produits.t  = 0	
@@ -236,7 +237,6 @@ pred init[t:Time]
 					d.energie.t = ECAP
 					#d.produits.t = 0
 					d.destination.t = e
-					d.noeud.t.currentR = e
 				}				
 
 				// toutes les produits se trouvent a l'entrepot et chaque commande a un seule type de produits
@@ -274,21 +274,18 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 		// drone a l'entrepot
 		d.pos.t = e.pos => 
 		{
-			one c: Commande | #d.produits.t=0 && #c.produits.t' > 0 && (no d': Drone | d!=d' && c.produits.t in d'.produits.t')=>
+			one c: Commande | #d.produits.t=0 && #c.produits.t > 0 && (no d': Drone | d!=d' && c.produits.t in d'.produits.t')=>
 			{
-				#d.produits.t' = DCAP || #c.produits.t' = 0
-				d.produits.t' in c.produits.t
-				d.produits.t' not in c.produits.t'
-				d.produits.t' in e.produits.t
-				d.produits.t' not in e.produits.t'
+				d.produits.t' = c.produits.t
 				no d' : Drone | d' != d &&  (some p: Produit | p in d'.produits.t' && p in d.produits.t')
-				d.destination.t' = c.destination 
-				one n : Noeud | {
+				d.destination.t' = c.destination
+				/*one n : Noeud | 
+				{
 					n.currentR = c.destination
 					d.noeud.t'.currentR = e
 					no n.nextN
 					n in d.noeud.t'.*nextN
-				}
+				}*/
 			}
 			else 
 			{
@@ -299,10 +296,10 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 		// drone a un receptacle
 		else
 		{
-			some r: Receptacle | (r!=e) && r = d.destination.t =>
+			some r: Receptacle |  r = d.destination.t =>
 			{
 				r.produits.t' in d.produits.t
-				#d.produits.t' = 0
+				no p: Produit | p in d.produits.t'
 				d.destination.t' = e
 			}
 		}
