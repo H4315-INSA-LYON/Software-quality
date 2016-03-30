@@ -279,35 +279,42 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 				d.produits.t' = c.produits.t
 				no d' : Drone | d' != d &&  (some p: Produit | p in d'.produits.t' && p in d.produits.t')
 				d.destination.t' = c.destination
-				/*one n : Noeud | 
+				one n : Noeud | 
 				{
 					n.currentR = c.destination
 					d.noeud.t'.currentR = e
 					no n.nextN
 					n in d.noeud.t'.*nextN
-				}*/
+				}
 			}
 			else 
 			{
 				d.destination.t' = e
 				d.pos.t' = e.pos
+				d.noeud.t' = d.noeud.t
+				d.produits.t' = d.produits.t
 			}
+			d.energie.t' = d.energie.t
 		}
-		// drone a un receptacle
+		// drone au dernier receptacle
 		else
 		{
-			some r: Receptacle |  r = d.destination.t =>
+			one r: Receptacle |  r = d.destination.t =>
 			{
 				r.produits.t' in d.produits.t
 				no p: Produit | p in d.produits.t'
 				d.destination.t' = e
+				d.pos.t' = r.pos
+				d.noeud.t' = d.noeud.t
 			}
 		}
 	}
 	//drone en mouvement
 	else
 	{
-		// si la drone se trouve dans un noeud
+		d.destination.t' = d.destination.t
+		d.produits.t' = d.produits.t
+		// si la drone se trouve dans un noeud (receptacle)
 		d.pos.t = d.noeud.t.currentR.pos =>
 		{
 			// la drone doit etre charge
@@ -315,6 +322,7 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 			{
 				d.pos.t' = d.pos.t
 				d.energie.t' = d.energie.t.add[1]
+				d.noeud.t' = d.noeud.t
 			}
 			// la drone est charge, donc elle peut avancer
 			else
@@ -322,13 +330,13 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 				// si la drone se retourne
 				d.destination.t = e => 
 				{
-					
+					avancer[t,t',d,d.noeud.t.previousN.currentR]
 					d.noeud.t' = d.noeud.t.previousN
 				}
 				// si la drone va vers un receptacle
 				else
 				{
-					
+					avancer[t,t',d,d.noeud.t.nextN.currentR]
 					d.noeud.t = d.noeud.t.nextN
 				}
 			}
@@ -336,12 +344,21 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 		// si la drone se trouve dans le trajet elle doit juste avancer
 		else
 		{
-			
+				avancer[t,t',d,d.noeud.t.currentR]
+				
 		}
 	}
 }
 
-// ------------------  TESTS  ---------------------
+
+pred avancer[t,t' : Time, d:Drone, r:Receptacle]
+{
+	one p:  Position | distance[p,d.pos.t] =1 && distance[p,r.pos]<distance[r.pos,d.pos.t] =>
+	{
+		d.pos.t' = p 	
+		d.energie.t' = d.energie.t.sub[1]
+	}
+}
 
 
 run simul for 3
