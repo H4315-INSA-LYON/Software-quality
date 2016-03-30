@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<alloy>
+
+<view nodetheme="Neon">
+
+<projection> <type name="Time"/> </projection>
+
+<defaultnode/>
+
+<defaultedge/>
+
+<node>
+   <type name="String"/>
+   <type name="Time"/>
+   <type name="univ"/>
+   <type name="seq/Int"/>
+   <type name="to/Ord"/>
+   <set name="First" type="to/Ord"/>
+   <set name="Next" type="to/Ord"/>
+</node>
+
+<node color="Red">
+   <type name="Int"/>
+</node>
+
+<node shape="Circle" color="Blue">
+   <type name="Noeud"/>
+</node>
+
+<node shape="Diamond">
+   <type name="Position"/>
+</node>
+
+<node shape="Hexagon" color="Black">
+   <type name="Receptacle"/>
+</node>
+
+<node shape="House">
+   <type name="Entrepot"/>
+</node>
+
+<node shape="Parallelogram" color="Gray">
+   <type name="Commande"/>
+</node>
+
+<node shape="Trapezoid" color="Gray">
+   <type name="Produit"/>
+</node>
+
+<node shape="Triangle" color="Green">
+   <type name="Drone"/>
+</node>
+
+</view>
+
+</alloy>
