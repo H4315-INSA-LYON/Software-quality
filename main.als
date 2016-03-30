@@ -6,7 +6,7 @@ open util/integer
 
 // -----------------------------------  CONSTANTES  --------------------------------------------
 
-let tailleGrille = 7 // la taille de la grille
+let tailleGrille = 3 // la taille de la grille
 let RCAP = 7  		// la capacite de stockage d'un receptacle nbProduits <= RCAP
 let DCAP = 3  		// la capacite de transport d'une drone nbProduits <= DCAP
 let ECAP = 3  		// la capacite de chargement d'une drone energie <= ECAP
@@ -262,9 +262,7 @@ pred majMonde [t, t' : Time]
 	all c: Commande, p: Produit| one e: Entrepot |( p in c.produits.t && (no d: Drone| p in d.produits.t') ) => 
 													(p in c.produits.t' && p in e.produits.t')
 													else (p not in c.produits.t' && p not in e.produits.t')
-
-	all r: Receptacle, p: Produit| (p in r.produits.t && no d: Drone | p in d.produits.t') =>(p in r.produits.t')
-													else p not in r.produits.t'
+	all r: Receptacle | one e: Entrepot | r!=e => (all p: Produit | p in r.produits.t => p in r.produits.t')
 }
 
 pred deplacerDrone[t,t' : Time , d:Drone]
@@ -277,7 +275,7 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 			one c: Commande | #d.produits.t=0 && #c.produits.t > 0 && (no d': Drone | d!=d' && c.produits.t in d'.produits.t')=>
 			{
 				d.produits.t' = c.produits.t
-				no d' : Drone | d' != d &&  (some p: Produit | p in d'.produits.t' && p in d.produits.t')
+				no d' : Drone | d' != d &&  (one p: Produit | p in d'.produits.t' && p in d.produits.t')
 				d.destination.t' = c.destination
 				one n : Noeud | 
 				{
@@ -290,23 +288,24 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 			else 
 			{
 				d.destination.t' = e
-				d.pos.t' = e.pos
 				d.noeud.t' = d.noeud.t
 				d.produits.t' = d.produits.t
 			}
+			d.pos.t' = e.pos
 			d.energie.t' = d.energie.t
 		}
 		// drone au dernier receptacle
 		else
 		{
-			one r: Receptacle |  r = d.destination.t =>
-			{
-				r.produits.t' in d.produits.t
-				no p: Produit | p in d.produits.t'
+				 //r.produits.t' = d.produits.t
+			   	 //d.produits.t not in d.produits.t'
+				d.destination.t.produits.t' = d.produits.t
+				//d.produits.t' not in d.produits.t
+				d.produits.t not in d.produits.t'
 				d.destination.t' = e
-				d.pos.t' = r.pos
+				d.pos.t' = d.pos.t
+				d.energie.t' = d.energie.t
 				d.noeud.t' = d.noeud.t
-			}
 		}
 	}
 	//drone en mouvement
@@ -318,7 +317,8 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 		d.pos.t = d.noeud.t.currentR.pos =>
 		{
 			// la drone doit etre charge
-			d.energie.t < distance[d.pos.t, d.noeud.t.nextN.currentR.pos] =>
+			(d.energie.t < distance[d.pos.t, d.noeud.t.nextN.currentR.pos] && d.destination.t!=e )
+			|| (d.energie.t < distance[d.pos.t,d.noeud.t.previousN.currentR.pos] && d.destination.t=e)=>
 			{
 				d.pos.t' = d.pos.t
 				d.energie.t' = d.energie.t.add[1]
@@ -337,7 +337,7 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 				else
 				{
 					avancer[t,t',d,d.noeud.t.nextN.currentR]
-					d.noeud.t = d.noeud.t.nextN
+					d.noeud.t' = d.noeud.t.nextN
 				}
 			}
 		}
@@ -345,7 +345,7 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 		else
 		{
 				avancer[t,t',d,d.noeud.t.currentR]
-				
+				d.noeud.t' = d.noeud.t
 		}
 	}
 }
@@ -353,14 +353,19 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 
 pred avancer[t,t' : Time, d:Drone, r:Receptacle]
 {
-	one p:  Position | distance[p,d.pos.t] =1 && distance[p,r.pos]<distance[r.pos,d.pos.t] =>
+	 one p:  Position | distance[p,d.pos.t] =1 && distance[p,r.pos]<distance[r.pos,d.pos.t] =>
 	{
 		d.pos.t' = p 	
 		d.energie.t' = d.energie.t.sub[1]
 	}
+	else
+	{
+		d.pos.t' = d.pos.t
+		d.energie.t' = d.energie.t
+	}
 }
 
 
-run simul for 3
+run simul for 2 but 9 Position, 8 Time, 4 Int
 
 
