@@ -8,7 +8,7 @@ open util/integer
 
 let tailleGrille = 7 // la taille de la grille
 let RCAP = 7  		// la capacite de stockage d'un receptacle nbProduits <= RCAP
-let DCAP = 2  		// la capacite de transport d'une drone nbProduits <= DCAP
+let DCAP = 3  		// la capacite de transport d'une drone nbProduits <= DCAP
 let ECAP = 3  		// la capacite de chargement d'une drone energie <= ECAP
 
 
@@ -252,7 +252,19 @@ pred simul
 	all t: Time - last | let t' = t.next 
 	{
 		all d : Drone | deplacerDrone[t,t',d]
+
+		majMonde [t,t']
 	}
+}
+
+pred majMonde [t, t' : Time]
+{
+	all c: Commande, p: Produit| one e: Entrepot |( p in c.produits.t && (no d: Drone| p in d.produits.t') ) => 
+													(p in c.produits.t' && p in e.produits.t')
+													else (p not in c.produits.t' && p not in e.produits.t')
+
+	all r: Receptacle, p: Produit| (p in r.produits.t && no d: Drone | p in d.produits.t') =>(p in r.produits.t')
+													else p not in r.produits.t'
 }
 
 pred deplacerDrone[t,t' : Time , d:Drone]
@@ -262,17 +274,17 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 		// drone a l'entrepot
 		d.pos.t = e.pos => 
 		{
-			some c: Commande | #c.produits.t > 0 && (no d': Drone | d!=d' && c.produits.t in d'.produits.t')=>
+			one c: Commande | #d.produits.t=0 && #c.produits.t' > 0 && (no d': Drone | d!=d' && c.produits.t in d'.produits.t')=>
 			{
 				#d.produits.t' = DCAP || #c.produits.t' = 0
 				d.produits.t' in c.produits.t
-				d.produits.t' in e.produits.t
 				d.produits.t' not in c.produits.t'
+				d.produits.t' in e.produits.t
 				d.produits.t' not in e.produits.t'
-				no d' : Drone | d' != d &&  (d'.produits.t' not in d.produits.t') && (d.produits.t' not in d'.produits.t')
+				no d' : Drone | d' != d &&  (some p: Produit | p in d'.produits.t' && p in d.produits.t')
 				d.destination.t' = c.destination 
 				one n : Noeud | {
-					n.currentR = d.destination.t'
+					n.currentR = c.destination
 					d.noeud.t'.currentR = e
 					no n.nextN
 					n in d.noeud.t'.*nextN
@@ -280,7 +292,6 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 			}
 			else 
 			{
-				d.produits.t' = d.produits.t
 				d.destination.t' = e
 				d.pos.t' = e.pos
 			}
@@ -288,7 +299,7 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 		// drone a un receptacle
 		else
 		{
-			some r: Receptacle | r = d.destination.t =>
+			some r: Receptacle | (r!=e) && r = d.destination.t =>
 			{
 				r.produits.t' in d.produits.t
 				#d.produits.t' = 0
