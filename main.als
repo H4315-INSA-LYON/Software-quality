@@ -203,7 +203,7 @@ pred init[t:Time]
 	// pas de commande vide 
 	all commande : Commande | #commande.produits.t > 0 && #commande.produits<=CCAP
 	
-	all d: Drone | d.energie.t = 0 && #d.produits.t = 0 
+	all d: Drone | d.energie.t = 3 && #d.produits.t = 0 
 
 	all d: Drone | one e : Entrepot | d.pos.t = e.pos && d.destination.t = e &&  d.noeud.t.currentR = e
 
@@ -331,40 +331,19 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 
 pred avancer[t,t' : Time, d:Drone, r:Receptacle]
 {
-	(d.pos.t.x!=r.pos.x) =>
+	(no p: Position | distance[p,d.pos.t]=1 && distance[p,r.pos]<distance[d.pos.t,r.pos]) =>
 	{
-		(d.pos.t.x>r.pos.x)	=>
-		{
-			d.pos.t'.x=d.pos.t.x.sub[1]
-			d.pos.t'.y = d.pos.t.y
-			d.energie.t' = d.energie.t.sub[1]
-		}
-		else
-		{
-			d.pos.t'.x=d.pos.t.x.add[1]
-			d.pos.t'.y = d.pos.t.y
-			d.energie.t' = d.energie.t.sub[1]
-		}
+		d.pos.t = d.pos.t'
+		d.energie.t = d.energie.t'
 	}
-	else
+	else one p: {p:Position | distance[p,d.pos.t]=1 && distance[p,r.pos]<distance[d.pos.t,r.pos]} | 
 	{
-		(d.pos.t.y>r.pos.y)	=>
-		{
-			d.pos.t'.y=d.pos.t.y.sub[1]
-			d.pos.t'.x = d.pos.t.x
-			d.energie.t' = d.energie.t.sub[1]
-		}
-		else
-		{
-			d.pos.t'.y=d.pos.t.y.add[1]
-			d.pos.t'.x = d.pos.t.x
-			d.energie.t' = d.energie.t.sub[1]
-		}
+		d.pos.t' = p
+		d.energie.t' = d.energie.t.sub[1]
 	}
-
 }
 
 pred go{}
 
-run go for exactly 2 Drone, exactly 3 Receptacle,25 Time, exactly 2 Produit, exactly 4 Position, exactly 2 Commande, 8 Noeud, 4 Int
+run go for exactly 1 Drone, exactly 2 Receptacle,25 Time, exactly 2 Produit, exactly 4 Position, exactly 2 Commande, 8 Noeud, 4 Int
 
