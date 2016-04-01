@@ -1,5 +1,11 @@
+//Ame ni togirete ima kimi no kokoro o tsunagu oto	
+//Shoumei o nogareteru parareru shiyou	
+//Dakara mitsukete mitsukete yo nee	
+//Kioku no mukou ni	
+//Sono me ni boku o utsushite yo
+
 // ordering du temps 
-open util/ordering[Time] as to
+open util/ordering[Time] 
 // on utilise le framework integer pour faire des operations sur les entiers
 open util/integer 
 
@@ -74,13 +80,13 @@ one sig Entrepot extends Receptacle {}
 // Renvoie la valure absolue d'un nombre
 fun abs[a : Int]: Int
 {
-	(a<Int[0]) =>a.mul[-1] else a
+	(a>=0) =>a else a.mul[-1] 
 }
 
 // Renvoie la distance de Manhattan entre deux position a et b
 fun distance [a,b : Position]: Int
 {
-	add[ abs[sub[a.x,b.x] ], abs[sub[a.y,b.y] ] ]
+	abs[a.x.sub[b.x] ].add[abs[a.y.sub[b.y] ] ]
 }
 
 
@@ -123,16 +129,6 @@ fact CommandeNombre
 	#Commande > 0
 }
 
-// ---- Invariants sur les receptacles ----
-
-// Chaque receptacle doit avoir un autre receptacle voisin pour lequelle leur distance est plus
-// petit que 3
-fact Voisinage 
-{
-	all r1 : Receptacle | some r2 : Receptacle   
-	| distance[r1.pos,r2.pos]>0 && distance[r1.pos, r2.pos]<4
-}
-
 // Les receptacles sont dans des positions differents
 fact ReceptaclePasMemePosition
 {
@@ -142,20 +138,17 @@ fact ReceptaclePasMemePosition
 
 // ---- Invariants sur les drones
 
-// Pour chaque drone l'energie est entre 0 et 3 inclus.
-fact EnergieDrone 
+fact EnergiePositive
 {
-	all d : Drone,t : Time| d.energie.t>=0 && d.energie.t<4
+	all d:Drone, t: Time | d.energie.t >=0 && d.energie.t <=ECAP
 }
-
-
 
 // ---- Invariants sur les commandes ----
 
 // La destination d'une commande ne peut pas etre l'entrepot
 fact DestinationCommandePasEntrepot
 {
-	all c : Commande | one e : Entrepot | c.destination.pos !=e.pos
+	all c : Commande | one e : Entrepot | c.destination !=e
 }
 
 // ---- Invariants sur les noeuds ----
@@ -164,11 +157,13 @@ fact DestinationCommandePasEntrepot
 fact BoucleNoeuds
 {
 	all n : Noeud | n.currentR not in n.^nextN.currentR
+	all n : Noeud | n.currentR not in n.^previousN.currentR
 }
 
 fact PreviousNoeuds
 {
-	all n: Noeud | (#n.nextN>0) => (n.nextN.previousN = n)
+	all n: Noeud | (one n.nextN => n.nextN.previousN = n) && 
+							(one n.previousN => n.previousN.nextN = n)
 }
 
 fact EntrepotInvariants
@@ -185,21 +180,20 @@ fact NoUniqueNodeForEntrepot
 // ????? cas si chemin sans consecutive
 fact distanceReceptacleConsecutive
 {
-	all n : Noeud | distance[n.currentR.pos, n.nextN.currentR.pos]<=3
+	all n : Noeud |  one n.nextN => distance[n.currentR.pos, n.nextN.currentR.pos]<=3
 }
 
 // On peut arriver a partir d'entrepot a n'importe quelle receptacle
 fact RecepctacleAtteignable
  {
- 	all r : Receptacle | one e : Entrepot  | some n : Noeud | (n.currentR=e) && ((r!=e) => r in n.*nextN.currentR)
+ 	all r : Receptacle | one e : Entrepot  | some n : Noeud | ((n.currentR=e) && (r!=e) => r in n.*nextN.currentR)
  }
 
 // On peut pas avoir des noeuds doublons( meme receptacles et meme nextN )
 fact NoeudsDifferent
 {
-	all disj n1, n2 : Noeud | n1.currentR!=n2.currentR || n1.nextN!=n2.nextN
+	all disj n1, n2 : Noeud | n1.currentR!=n2.currentR || (n1.nextN!=n2.nextN && some n1.nextN && some n2.nextN) 
 }
-
 
 // ------------------  SIMULATION  ---------------------
 
@@ -208,29 +202,20 @@ pred init[t:Time]
 {
 	// pas de commande vide 
 	all commande : Commande | #commande.produits.t > 0 && #commande.produits<=CCAP
+	
+	all d: Drone | d.energie.t = 0 && #d.produits.t = 0 
 
-	one e: Entrepot | {
-				
-				// un receptacle soit c'est l'entrepot soit il est vide
-				all r: Receptacle | r = e ||  #r.produits.t = 0
+	all d: Drone | one e : Entrepot | d.pos.t = e.pos && d.destination.t = e &&  d.noeud.t.currentR = e
 
-				// toutes les drones a l'entrepot et charges
-				all d: Drone | {
-					d.pos.t = e.pos
-					d.energie.t = 0
-					#d.produits.t = 0
-					d.destination.t = e
-					d.noeud.t.currentR = e
-				}				
-				all c:Commande | c.produits.t  in e.produits.t
-				// toutes les produits se trouvent a l'entrepot et chaque commande a un seule type de produits
-				all p: Produit | p in e.produits.t && one c: Commande | p in c.produits.t
-	}
+	all r: Receptacle| one e: Entrepot | r = e || #r.produits.t = 0
+	
+
+	all p:Produit| one e:Entrepot | p in e.produits.t && one c:Commande | p in c.produits.t
 }
 
 
 // simulation
-pred simul
+fact simul
 {
 	init[first]
 	all t: Time - last | let t' = t.next 
@@ -243,31 +228,36 @@ pred simul
 
 pred majMonde [t, t' : Time]
 {
-	all p: Produit, c: Commande | one e: Entrepot |( p in c.produits.t && (no d: Drone| p in d.produits.t') ) => 
-													(p in c.produits.t && p in e.produits.t)
+	all p: Produit, c: Commande | ( p in c.produits.t && (no d: Drone| p in d.produits.t') ) => 
+													(p in c.produits.t')
 													else (p not in c.produits.t')
-									
-	all p: Produit | one e: Entrepot |( p in e.produits.t && (no d: Drone| p in d.produits.t') ) => 
-													(p in e.produits.t)
-													else (p not in e.produits.t')
+	all p:Produit | one e:Entrepot | p in e.produits.t && (no d:Drone | p in d.produits.t') =>
+													p in e.produits.t' else p not in e.produits.t'	
+	
+	all r: Receptacle |one e: Entrepot| r!=e && (no d: Drone | d.destination.t = r && d.pos.t = r.pos) => r.produits.t' = r.produits.t
 
-		all r: Receptacle | (no d: Drone | d.destination.t = r && d.pos.t = r.pos) => r.produits.t' = r.produits.t
 }
 
 pred deplacerDrone[t,t' : Time , d:Drone]
 {
 	one e: Entrepot | d.pos.t = d.destination.t.pos => 
 	{
+
 		// drone a l'entrepot
 		d.pos.t = e.pos => 
 		{
-			one c: Commande |  #c.produits.t > 0 && (no d': Drone | d!=d' && c.produits.t in d'.produits.t')=>
+				
+			(no  c: Commande | #c.produits.t>0 && (no d':Drone|d'!=d && c.produits.t in d'.produits.t')) =>
+			{
+				d.destination.t' = e
+				d.noeud.t' = d.noeud.t
+				d.produits.t' = d.produits.t
+			}
+			else one c: { c:Commande |   #c.produits.t > 0 && (no d': Drone | d!=d' && c.produits.t in d'.produits.t')}|
 			{
 				d.produits.t' = c.produits.t
-				no d' : Drone | d' != d &&  (one p: Produit | p in d'.produits.t' && p in d.produits.t')
+				no d' : Drone | d' != d &&  (some p: Produit | p in d'.produits.t' && p in d.produits.t')
 				d.destination.t' = c.destination
-				d.pos.t' = e.pos
-				d.energie.t' = d.energie.t
 				one n : Noeud | 
 				{
 					n.currentR = c.destination
@@ -276,14 +266,6 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 					n in d.noeud.t'.*nextN
 				}
 			}
-			else 
-			{
-				d.destination.t' = e
-				d.noeud.t' = d.noeud.t
-				d.produits.t' = d.produits.t
-				d.pos.t' = e.pos
-				d.energie.t' = d.energie.t
-			}
 		}
 		// drone au dernier receptacle
 		else
@@ -291,55 +273,57 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 				d.destination.t.produits.t' = d.destination.t.produits.t + d.produits.t
 				no p: Produit | p in d.produits.t'
 				d.destination.t' = e
-				d.pos.t' = d.pos.t
-				d.energie.t' = d.energie.t
 				d.noeud.t' = d.noeud.t
 		}
+		d.pos.t' = d.pos.t
+		d.energie.t' = d.energie.t
 	}
 	//drone en mouvement
 	else
 	{
-		// si la drone se trouve dans un noeud (receptacle)
+		d.produits.t' = d.produits.t
+		d.destination.t' = d.destination.t
 		d.pos.t = d.noeud.t.currentR.pos =>
 		{
 			// la drone doit etre charge
-			(d.energie.t < distance[d.pos.t, d.noeud.t.nextN.currentR.pos] && d.destination.t!=e )
-			|| (d.energie.t < distance[d.pos.t,d.noeud.t.previousN.currentR.pos] && d.destination.t=e)=>
+			((d.energie.t < distance[d.pos.t, d.noeud.t.nextN.currentR.pos] && d.destination.t!=e )
+			|| (d.energie.t < distance[d.pos.t,d.noeud.t.previousN.currentR.pos] && d.destination.t=e))=>
 			{
-				d.produits.t' = d.produits.t
-				d.pos.t' = d.pos.t
+							d.pos.t' = d.pos.t
 				d.energie.t' = d.energie.t.add[1]
 				d.noeud.t' = d.noeud.t
-				d.destination.t' = d.destination.t
 			}
-			// la drone est charge, donc elle peut avancer
 			else
 			{
-				// si la drone se retourne
 				d.destination.t = e => 
 				{
-					avancer[t,t',d,d.noeud.t.previousN.currentR]
+					(no r: Receptacle | d.noeud.t.previousN.currentR =r) =>
+					{
+						// for debug
+						d.energie.t' = d.energie.t.add[3]
+						d.pos.t' = d.pos.t
+					}
+					else one r:{r:Receptacle | d.noeud.t.previousN.currentR =r} | avancer[t,t',d,r]
 					d.noeud.t' = d.noeud.t.previousN
-					d.destination.t' = d.destination.t
-					d.produits.t' = d.produits.t
 				}
 				// si la drone va vers un receptacle
 				else
 				{
-					avancer[t,t',d,d.noeud.t.nextN.currentR]
-					d.noeud.t' = d.noeud.t.nextN
-					d.destination.t' = d.destination.t
-					d.produits.t' = d.produits.t
+					(no r: Receptacle | d.noeud.t.nextN.currentR =r) =>
+					{
+						// for debug
+						d.energie.t' = d.energie.t.add[3]
+						d.pos.t' = d.pos.t
+					}
+					else one r: {r:Receptacle | d.noeud.t.nextN.currentR =r} | avancer[t,t',d,r]
+ 					d.noeud.t' = d.noeud.t.nextN
 				}
 			}
 		}
-		// si la drone se trouve dans le trajet elle doit juste avancer
 		else
 		{
-				avancer[t,t',d,d.noeud.t.currentR]
-				d.noeud.t' = d.noeud.t
-				d.destination.t' = d.destination.t
-				d.produits.t' = d.produits.t
+			avancer[t,t',d,d.noeud.t.currentR]
+			d.noeud.t' = d.noeud.t
 		}
 	}
 }
@@ -347,17 +331,40 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 
 pred avancer[t,t' : Time, d:Drone, r:Receptacle]
 {
-	 one p:  Position|distance[p,d.pos.t] =1 && distance[p,r.pos]<distance[r.pos,d.pos.t]=>
+	(d.pos.t.x!=r.pos.x) =>
 	{
-		d.pos.t' = p 	
-		d.energie.t' = d.energie.t.sub[1]
+		(d.pos.t.x>r.pos.x)	=>
+		{
+			d.pos.t'.x=d.pos.t.x.sub[1]
+			d.pos.t'.y = d.pos.t.y
+			d.energie.t' = d.energie.t.sub[1]
+		}
+		else
+		{
+			d.pos.t'.x=d.pos.t.x.add[1]
+			d.pos.t'.y = d.pos.t.y
+			d.energie.t' = d.energie.t.sub[1]
+		}
 	}
 	else
 	{
-		d.pos.t' = d.pos.t
-		d.energie.t' = d.energie.t
+		(d.pos.t.y>r.pos.y)	=>
+		{
+			d.pos.t'.y=d.pos.t.y.sub[1]
+			d.pos.t'.x = d.pos.t.x
+			d.energie.t' = d.energie.t.sub[1]
+		}
+		else
+		{
+			d.pos.t'.y=d.pos.t.y.add[1]
+			d.pos.t'.x = d.pos.t.x
+			d.energie.t' = d.energie.t.sub[1]
+		}
 	}
+
 }
 
-run simul for exactly 1 Drone, exactly 2 Receptacle, 15 Time, exactly 2 Produit, 4 Position, exactly 2 Commande, 8 Noeud, 4 Int
+pred go{}
+
+run go for exactly 2 Drone, exactly 3 Receptacle,25 Time, exactly 2 Produit, exactly 4 Position, exactly 2 Commande, 8 Noeud, 4 Int
 
