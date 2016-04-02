@@ -184,7 +184,7 @@ fact distanceReceptacleConsecutive
 // On peut arriver a partir d'entrepot a n'importe quelle receptacle
 fact RecepctacleAtteignable
  {
- 	all r : Receptacle | one e : Entrepot  | some n : Noeud | ((n.currentR=e) && (r!=e) => r in n.*nextN.currentR)
+ 	all r : Receptacle | one e : Entrepot  | some n : Noeud | ((n.currentR=e) && (r!=e) )=> r in n.*nextN.currentR
  }
 
 // On peut pas avoir des noeuds doublons( meme receptacles et meme nextN )
@@ -267,8 +267,8 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 		// drone au dernier receptacle
 		else
 		{
- 				d.produits.t in d.destination.t.produits.t'
-              	  d.destination.t.produits.t in d.destination.t.produits.t'
+				d.produits.t in d.destination.t.produits.t'
+				d.destination.t.produits.t in d.destination.t.produits.t'
 				no p: Produit | p in d.produits.t'
 				d.destination.t' = e
 				d.noeud.t' = d.noeud.t
