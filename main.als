@@ -107,8 +107,6 @@ fact PositionPasMemeCoordonnes
 	all disj p1, p2: Position | p1.x != p2.x || p1.y != p2.y 
 }
 
-
-
 // ---- Invariants d'initialisation des donees ----
 
 // le nombre de receptacle doit etre plus grand a un + 1 pour l'entrepot
@@ -137,11 +135,11 @@ fact ReceptaclePasMemePosition
 
 
 // ---- Invariants sur les drones
-
+/*
 fact EnergiePositive
 {
 	all d:Drone, t: Time | d.energie.t >=0 && d.energie.t <=ECAP
-}
+}*/
 
 // ---- Invariants sur les commandes ----
 
@@ -225,7 +223,6 @@ fact simul
 		majMonde [t,t']
 	}
 }
-
 pred majMonde [t, t' : Time]
 {
 	all p: Produit, c: Commande | ( p in c.produits.t && (no d: Drone| p in d.produits.t') ) => 
@@ -270,7 +267,8 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 		// drone au dernier receptacle
 		else
 		{
-				d.destination.t.produits.t' = d.destination.t.produits.t + d.produits.t
+ 				d.produits.t in d.destination.t.produits.t'
+              	  d.destination.t.produits.t in d.destination.t.produits.t'
 				no p: Produit | p in d.produits.t'
 				d.destination.t' = e
 				d.noeud.t' = d.noeud.t
@@ -331,7 +329,8 @@ pred deplacerDrone[t,t' : Time , d:Drone]
 
 pred avancer[t,t' : Time, d:Drone, r:Receptacle]
 {
-	(no p: Position | distance[p,d.pos.t]=1 && distance[p,r.pos]<distance[d.pos.t,r.pos]) =>
+	(no p: Position | distance[p,d.pos.t]=1 && distance[p,r.pos]<distance[d.pos.t,r.pos])
+	=>
 	{
 		d.pos.t = d.pos.t'
 		d.energie.t = d.energie.t'
@@ -343,7 +342,51 @@ pred avancer[t,t' : Time, d:Drone, r:Receptacle]
 	}
 }
 
+// Deux drones ne doivent pas être dans une même position, sauf dans l'entrepot
+assert droneMemePosition 
+{
+ all disj d1,d2 : Drone | all t : Time | one e : Entrepot | d1.pos.t!=d2.pos.t || d1.pos.t=e.pos
+}
+
+//L'énergie d'une batterie doit être entre 0 et 3
+assert energieEntre0et3
+{
+all d : Drone | all t : Time| d.energie.t>=0 && d.energie.t<=ECAP
+}
+
+/*A la fin, tous les commandes doivent être vides
+				il ne doit pas avoir de produits dans l'entrepot
+				tous les drones doivent etre dans l'entrepot */
+assert verificationFin
+{
+all c : Commande | #c.produits.last=0
+one e : Entrepot | #e.produits.last = 0
+all d : Drone | one e : Entrepot | d.pos.last = e.pos
+}
+
+// Un produit doit appartenir à une drone ou à un receptacle
+assert pasProduitDroneEtReceptacle
+{
+	all d : Drone | all r : Receptacle | no p : Produit | all t : Time |  
+	p in d.produits.t && p in r.produits.t 
+}
+// Au niveau d’un réceptacle les actions de livrer les produits et de recharger la
+// batterie ne peuvent pas avoir lieu en même temps.
+assert pasBatterieEtLivraison
+{
+	all t : Time | all d : Drone | all r : Receptacle | one e : Entrepot |
+	(d.pos.t=r.pos) && (#d.produits.t>0) && (t!=last) && (e!=r) => 
+	(#d.produits.t.next=0 || d.energie.t=d.energie.t.next)
+}
+
+
 pred go{}
 
 run go for exactly 1 Drone, exactly 2 Receptacle,25 Time, exactly 2 Produit, exactly 4 Position, exactly 2 Commande, 8 Noeud, 4 Int
-
+run go for exactly 2 Drone, exactly 2 Receptacle,5 Time, exactly 2 Produit, exactly 4 Position, exactly 2 Commande, 8 Noeud, 4 Int
+check droneMemePosition for exactly 2 Drone, exactly 2 Receptacle,25 Time, exactly 2 Produit, exactly 4 Position, exactly 2 Commande, 8 Noeud, 4 Int
+check energieEntre0et3 for exactly 2 Drone, exactly 2 Receptacle,25 Time, exactly 2 Produit, exactly 4 Position, exactly 2 Commande, 8 Noeud, 4 Int
+check verificationFin for exactly 2 Drone, exactly 2 Receptacle,25 Time, exactly 2 Produit, exactly 4 Position, exactly 2 Commande, 8 Noeud, 4 Int
+check pasProduitDroneEtReceptacle for exactly 2 Drone, exactly 2 Receptacle,25 Time, exactly 2 Produit, exactly 4 Position, exactly 2 Commande, 8 Noeud, 4 Int
+check pasBatterieEtLivraison for exactly 2 Drone, exactly 2 Receptacle,25 Time, exactly 2 Produit, exactly 4 Position, exactly 2 Commande, 8 Noeud, 4 Int
+run go for exactly 2 Drone, exactly 5 Receptacle,5 Time, exactly 4 Produit, exactly 9 Position, exactly 2 Commande, 8 Noeud, 4 Int
