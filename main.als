@@ -273,6 +273,7 @@ pred viderDrone[t,t': Time, d: Drone, e: Entrepot]
 		d.noeud.t' = d.noeud.t
 }
 
+// chargement de la batterie dans le cas ou la drone n'a plus de batterie 
 pred chargerBatterie[t,t': Time, d: Drone]
 {
 		d.pos.t' = d.pos.t
