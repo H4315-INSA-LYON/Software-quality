@@ -43,7 +43,6 @@ sig Receptacle
 {
 	pos: Position,
 	produits: Produit->Time
-	// TODO : capacite
 }
 
 // la commande qui va etre realise par une drone
@@ -55,7 +54,7 @@ sig Commande
 
 // Un noeud est represente par un receptacle. Permet de calculer le chemin entre 
 // entrepot et un receptacle
-// nextN        - le prochain noeud dans le chemin (pour les extremites vide)
+// nextN        - le prochain noeud dans le chemin (pour les extremites vides)
 // previousN  - le noeud anterieur dans le chemin (pour l'entrepot vide)  
 sig Noeud
 {
@@ -109,7 +108,7 @@ fact PositionPasMemeCoordonnes
 
 // ---- Invariants d'initialisation des donees ----
 
-// le nombre de receptacle doit etre plus grand a un + 1 pour l'entrepot
+// le nombre de receptacle doit etre plus grand que 1 (y compris l'entrepot)
 fact ReceptacleNombre
 { 
 	#Receptacle > 1
@@ -346,7 +345,7 @@ pred majDrone[t,t' : Time , d:Drone]
 }
 
 
-// faire avancer un drone vers un receptacle dans le cas le mouvement est possible
+// faire avancer un drone vers un receptacle dans le cas si le mouvement est possible
 pred avancer[t,t' : Time, d:Drone, r:Receptacle]
 {
 	// dans le cas ou il existe une position t.q. il n'y a pas un autre drone ou qui nous fait
@@ -400,7 +399,7 @@ assert pasProduitDroneEtReceptacle
 	p in d.produits.t && p in r.produits.t 
 }
 // Au niveau d’un réceptacle les actions de livrer les produits et de recharger la
-// batterie ne peuvent pas avoir lieu en même temps.
+// batterie ne peuvent pas avoir lieu en même temps
 assert pasBatterieEtLivraison
 {
 	all t : Time | all d : Drone | all r : Receptacle | one e : Entrepot |
